@@ -1,0 +1,16 @@
+{
+  "name": "DIVA 2.0 webapp",
+  "short_name": "DIVA 2.0",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0f3b63",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
