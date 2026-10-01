@@ -1,4 +1,4 @@
-DIVA 2.0 webapp
+DIVA 2.0 · anonymt interviewværktøj
 
 Indhold:
 - index.html: åbn denne i browseren eller læg hele mappen på GitHub Pages
@@ -9,7 +9,9 @@ Indhold:
 - favicon.svg
 
 Noter:
-- Data gemmes kun lokalt i browserens localStorage.
-- Ingen data sendes til server.
+- Appen må ikke bruges til navn, CPR, initialer, journalnummer eller andre direkte identifikatorer.
+- Kladden gemmes kun i browserens sessionStorage og sendes aldrig automatisk til en server.
 - Resultatsiden kan printes/gemmes som PDF fra browseren.
-- Brugeren kan eksportere JSON og kopiere resultatsammenfatning.
+- JSON og tekst kan deles via iPad/iOS-delingsmenuen og gemmes i OneDrive.
+- OneDrive-appen skal være installeret, og praksis skal have godkendt den valgte mappe.
+- Slet altid kladden efter kontrolleret eksport.

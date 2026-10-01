@@ -1,13 +1,16 @@
 
 const DATA = window.DIVA_DATA;
-const STORE_KEY = 'diva2-webapp-state-v1';
+const STORE_KEY = 'diva2-webapp-session-v2';
+const LEGACY_STORE_KEY = 'diva2-webapp-state-v1';
+const SCHEMA_VERSION = 2;
 
 const defaultState = () => {
   const s = {
     tab: 'start',
     viewMode: 'single',
     symptomIndex: 0,
-    meta: { name:'', dob:'', gender:'', date:new Date().toISOString().slice(0,10), interviewer:'', patientNo:'' },
+    schemaVersion: SCHEMA_VERSION,
+    meta: { caseCode:'', ageRange:'', date:new Date().toISOString().slice(0,10) },
     symptoms: {},
     supplements: { oAdult:null, oChild:null, hiAdult:null, hiChild:null },
     onset: { lifelong:null, age:'' },
@@ -39,7 +42,10 @@ let state = loadState();
 
 function loadState(){
   try{
-    const raw = localStorage.getItem(STORE_KEY);
+    /* En kladde lever kun i den aktuelle browsersession. Ældre versioners
+       identificerende localStorage-data fjernes ved første start. */
+    localStorage.removeItem(LEGACY_STORE_KEY);
+    const raw = sessionStorage.getItem(STORE_KEY);
     const base = defaultState();
     if(!raw) return base;
     const saved = JSON.parse(raw);
@@ -57,7 +63,10 @@ function mergeDeep(target, source){
   });
   return target;
 }
-function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+function save(){
+  state.schemaVersion = SCHEMA_VERSION;
+  sessionStorage.setItem(STORE_KEY, JSON.stringify(state));
+}
 function esc(v){ return String(v ?? '').replace(/[&<>'"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m])); }
 function checked(v){ return v ? 'checked' : ''; }
 function active(a,b){ return a===b ? 'active' : ''; }
@@ -106,23 +115,33 @@ function subtypeSuggestion(){
   return 'Ingen subtypeforslag ud fra ≥ 6 i voksenalderen';
 }
 
+function completion(){
+  let answered = 0;
+  DATA.symptoms.forEach(item => {
+    if(state.symptoms[item.code]?.adult?.present !== null) answered++;
+    if(state.symptoms[item.code]?.child?.present !== null) answered++;
+  });
+  return { answered, total: DATA.symptoms.length * 2, percent: Math.round(answered / (DATA.symptoms.length * 2) * 100) };
+}
+
 function render(){
   const app = document.getElementById('app');
   const c = getCounts();
+  const done = completion();
   app.innerHTML = `
     <div class="hero no-print">
       <div class="hero-inner">
         <div class="brand">
           <div class="logo">D2</div>
           <div>
-            <h1>DIVA 2.0 webapp</h1>
-            <p>Diagnostisk interview til ADHD hos voksne - lokal, mobilvenlig udfyldning</p>
+            <h1>DIVA 2.0</h1>
+            <p>Anonymt interviewværktøj · data forlader ikke enheden automatisk</p>
           </div>
         </div>
         <div class="hero-actions">
           <button class="icon-btn" type="button" data-modal="patient">Info til patient</button>
           <button class="icon-btn hide-mobile" type="button" data-modal="guide">Vejledning</button>
-          <button class="primary-btn" type="button" data-copy-summary>Kopiér resultat</button>
+          <button class="primary-btn" type="button" data-share-summary>Del resultat</button>
         </div>
       </div>
     </div>
@@ -133,12 +152,13 @@ function render(){
         <div class="kpi"><strong>${c.hiAdult}/9</strong><span>H/I - voksen</span></div>
         <div class="kpi"><strong>${c.hiChild}/9</strong><span>H/I - barn</span></div>
       </div>
+      <div class="privacy-strip no-print"><span class="privacy-dot"></span><strong>Midlertidig kladde</strong><span>${done.answered}/${done.total} symptomvurderinger · ${done.percent}%</span><button type="button" data-privacy>Datasikkerhed</button></div>
       ${state.tab === 'start' ? renderStart() : ''}
       ${state.tab === 'o' ? renderSymptomSection('Opmærksomhedsforstyrrelse') : ''}
       ${state.tab === 'hi' ? renderSymptomSection('Hyperaktivitet/Impulsivitet') : ''}
       ${state.tab === 'dys' ? renderDysfunction() : ''}
       ${state.tab === 'result' ? renderResult() : ''}
-      <p class="footer-note">DIVA 2.0 webapp v1.0 · Oplysninger gemmes kun lokalt i browseren · Klinisk støtteværktøj, ikke en selvstændig diagnosemaskine</p>
+      <p class="footer-note">DIVA 2.0 · Anonymt klinisk støtteværktøj · Ingen data sendes automatisk · Ikke en selvstændig diagnosemaskine</p>
     </main>
     ${renderNav()}
   `;
@@ -151,37 +171,35 @@ function renderNav(){
 }
 function renderStart(){
   return `
-    <section class="card">
-      <h2>Start</h2>
-      <p class="muted">Udfyld patientoplysninger, brug popup'en med patientinformationen før interviewet, og gå derefter igennem Del 1, Del 2 og dysfunktion. Alt gemmes automatisk lokalt i browseren.</p>
+    <section class="card welcome-card">
+      <div class="eyebrow">Privat praksis</div>
+      <h2>Anonym DIVA-registrering</h2>
+      <p class="muted">Brug kun en intern, tilfældig referencekode. Indtast aldrig navn, initialer, CPR-nummer, telefonnummer, e-mail eller journalnummer i appen eller i fritekstfelterne.</p>
       <div class="grid three">
-        ${field('Patientens navn','meta.name',state.meta.name,'text')}
-        ${field('Fødselsdato','meta.dob',state.meta.dob,'date')}
-        <div class="field"><label>Køn</label><select data-input="meta.gender"><option value="">Ikke angivet</option><option ${state.meta.gender==='M'?'selected':''} value="M">M</option><option ${state.meta.gender==='K'?'selected':''} value="K">K</option><option ${state.meta.gender==='Andet'?'selected':''} value="Andet">Andet/ikke relevant</option></select></div>
-        ${field('Dato','meta.date',state.meta.date,'date')}
-        ${field('Navn på interviewer','meta.interviewer',state.meta.interviewer,'text')}
-        ${field('Patientnummer','meta.patientNo',state.meta.patientNo,'text')}
+        ${field('Anonym referencekode','meta.caseCode',state.meta.caseCode,'text','fx K7-M4 (ikke journalnr.)')}
+        <div class="field"><label>Aldersgruppe (valgfri)</label><select data-input="meta.ageRange"><option value="">Ikke angivet</option>${['18–24','25–34','35–44','45–54','55–64','65+'].map(v=>`<option ${state.meta.ageRange===v?'selected':''} value="${v}">${v} år</option>`).join('')}</select></div>
+        ${field('Interviewdato','meta.date',state.meta.date,'date')}
       </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px" class="no-print">
+      <div class="action-row no-print">
         <button class="primary-btn" type="button" data-modal="patient">Vis information til patienten</button>
         <button class="ghost-btn" type="button" data-modal="guide">Vis kort vejledning</button>
-        <button class="ghost-btn" type="button" data-export-json>Eksportér JSON</button>
-        <button class="danger-btn" type="button" data-reset>Nulstil</button>
+        <button class="ghost-btn" type="button" data-import>Hent anonym fil</button>
+        <button class="danger-btn" type="button" data-reset>Slet kladde</button>
       </div>
     </section>
     <section class="card">
-      <h2>Sådan er den bygget</h2>
+      <h2>Arbejdsgang</h2>
       <div class="grid two">
-        <div class="notice"><strong>Interviewflow</strong><br>Alle 18 DSM-IV-kriterier kan udfyldes for både voksenalder og barndom. Eksempler kan markeres, og selve symptomet vurderes separat med Ja/Nej.</div>
-        <div class="notice"><strong>Popup til information</strong><br>Patientinformationen fra originalen ligger som en knap/popup, så den kan læses op uden at fylde hele skærmen.</div>
-        <div class="notice"><strong>Resultat</strong><br>Appen tæller O og H/I automatisk og samler kriterierne i en resultatside. Den foreslår ikke en klinisk diagnose uden din vurdering.</div>
-        <div class="notice"><strong>Data</strong><br>Der er ingen server. Data ligger i localStorage på den enhed/browser, hvor appen bruges.</div>
+        <div class="notice"><strong>1. Interview</strong><br>Gennemgå de 18 kriterier for voksen- og barndomsliv. Eksemplerne er støtte; Ja/Nej-vurderingen er det, der tælles.</div>
+        <div class="notice"><strong>2. Klinisk vurdering</strong><br>Appen tæller svar og samler kriterierne, men diagnosen markeres altid manuelt af behandleren.</div>
+        <div class="notice"><strong>3. Gem i OneDrive</strong><br>Vælg “Del anonym fil” på resultatsiden og vælg OneDrive i iPadens delingsmenu. OneDrive-appen skal være installeret.</div>
+        <div class="notice"><strong>4. Afslut sikkert</strong><br>Kontrollér filen, gem den i godkendt mappe, og tryk derefter “Slet kladde” på denne enhed.</div>
       </div>
     </section>
   `;
 }
-function field(label,path,value,type='text'){
-  return `<div class="field"><label>${esc(label)}</label><input type="${type}" value="${esc(value)}" data-input="${esc(path)}"></div>`;
+function field(label,path,value,type='text',placeholder=''){
+  return `<div class="field"><label>${esc(label)}</label><input type="${type}" value="${esc(value)}" data-input="${esc(path)}" placeholder="${esc(placeholder)}" autocomplete="off" autocapitalize="off"></div>`;
 }
 function renderSymptomSection(sectionName){
   const sectionItems = DATA.symptoms.filter(x => x.section === sectionName);
@@ -338,10 +356,12 @@ function renderResult(){
       <div><label class="small" style="font-weight:850">ADHD diagnose</label>${radioButtons(state.result.diagnosis, 'result.diagnosis', [['false','Nej','no'],['true','Ja','yes'],['null','Ikke vurderet','maybe']])}</div>
       <div><label class="small" style="font-weight:850">Undertype</label><select data-input="result.subtype"><option value="notset">Ikke valgt</option><option ${state.result.subtype==='combined'?'selected':''} value="combined">314.01 Kombineret</option><option ${state.result.subtype==='inattentive'?'selected':''} value="inattentive">314.00 Overvejende uopmærksom</option><option ${state.result.subtype==='hyper'?'selected':''} value="hyper">314.01 Overvejende hyperaktiv/impulsiv</option></select></div>
     </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px" class="no-print">
+    <div class="action-row no-print">
       <button class="primary-btn" type="button" data-copy-summary>Kopiér resultat</button>
       <button class="ghost-btn" type="button" data-print>Print/gem som PDF</button>
-      <button class="ghost-btn" type="button" data-export-json>Eksportér JSON</button>
+      <button class="ghost-btn" type="button" data-share-summary>Del tekst</button>
+      <button class="ghost-btn" type="button" data-share-json>Del anonym fil</button>
+      <button class="danger-btn" type="button" data-reset>Slet kladde</button>
     </div>
   </section>`;
 }
@@ -362,8 +382,11 @@ function renderCriteriaE(){
 
 function openModal(kind){
   const root = document.getElementById('modalRoot');
-  let title = kind === 'patient' ? 'Information til patienten før interviewet' : 'Kort vejledning til intervieweren';
-  let body = kind === 'patient' ? DATA.patientInfo : DATA.interviewerInfo;
+  const privacy = kind === 'privacy';
+  let title = privacy ? 'Datasikkerhed' : kind === 'patient' ? 'Information til patienten før interviewet' : 'Kort vejledning til intervieweren';
+  let body = privacy
+    ? 'Appen har ingen server og sender ikke data automatisk. Den aktuelle kladde gemmes midlertidigt i browsersessionen på enheden. Eksport sker kun, når du selv vælger Del. Brug aldrig direkte eller indirekte patientidentifikation i referencekode, fritekst eller filnavn. Gem kun i en OneDrive-mappe, som praksis har godkendt til patientoplysninger, og slet kladden efter kontrolleret eksport.'
+    : kind === 'patient' ? DATA.patientInfo : DATA.interviewerInfo;
   root.innerHTML = `<div class="modal" role="dialog" aria-modal="true"><div class="modal-head"><h2>${esc(title)}</h2><button class="icon-btn" type="button" data-close-modal>Luk</button></div><div class="modal-body"><p>${esc(body)}</p></div></div>`;
   root.classList.add('open'); root.setAttribute('aria-hidden','false');
 }
@@ -377,9 +400,9 @@ function summaryText(){
   const meta = state.meta;
   const lines = [];
   lines.push('DIVA 2.0 - sammenfatning');
-  lines.push(`Patient: ${meta.name || 'ikke angivet'}${meta.patientNo ? ' ('+meta.patientNo+')' : ''}`);
+  lines.push(`Anonym reference: ${meta.caseCode || 'ikke angivet'}`);
+  if(meta.ageRange) lines.push(`Aldersgruppe: ${meta.ageRange} år`);
   lines.push(`Dato: ${meta.date || ''}`);
-  lines.push(`Interviewer: ${meta.interviewer || ''}`);
   lines.push('');
   lines.push(`Opmærksomhedsforstyrrelse: voksenalder ${c.oAdult}/9, barndom ${c.oChild}/9.`);
   lines.push(`Hyperaktivitet/impulsivitet: voksenalder ${c.hiAdult}/9, barndom ${c.hiChild}/9.`);
@@ -389,31 +412,107 @@ function summaryText(){
   lines.push(`Teknisk subtypeforslag ud fra voksenscoren: ${subtypeSuggestion()}.`);
   lines.push(`ADHD-diagnose manuelt markeret: ${state.result.diagnosis === 'true' || state.result.diagnosis === true ? 'Ja' : state.result.diagnosis === 'false' || state.result.diagnosis === false ? 'Nej' : 'Ikke vurderet'}.`);
   if(state.result.notes) lines.push(`Bemærkninger: ${state.result.notes}`);
+  lines.push('');
+  lines.push('Klinisk støtteværktøj. Resultatet er ikke en selvstændig diagnose.');
   return lines.join('\n');
 }
+function safeFileStem(){
+  const code = (state.meta.caseCode || 'anonym').toLowerCase().replace(/[^a-z0-9-]+/gi,'-').replace(/^-|-$/g,'');
+  return `diva-2-${code || 'anonym'}-${state.meta.date || 'uden-dato'}`;
+}
+function exportPayload(){
+  const copy = JSON.parse(JSON.stringify(state));
+  copy.schemaVersion = SCHEMA_VERSION;
+  delete copy.tab;
+  delete copy.viewMode;
+  delete copy.symptomIndex;
+  return copy;
+}
+function privacyWarnings(){
+  const text = JSON.stringify(exportPayload());
+  const warnings = [];
+  if(/\b\d{6}[- ]?\d{4}\b/.test(text)) warnings.push('muligt CPR-nummer');
+  if(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text)) warnings.push('e-mailadresse');
+  if(/(?:\+45[ .-]?)?(?:\d[ .-]?){8}\b/.test(text)) warnings.push('muligt telefonnummer');
+  return warnings;
+}
+function approveExport(){
+  const warnings = privacyWarnings();
+  if(warnings.length) return confirm(`Mulige personoplysninger fundet: ${warnings.join(', ')}. Gennemgå fritekstfelterne. Vil du eksportere alligevel?`);
+  return true;
+}
+function downloadFile(file){
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url; a.download = file.name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+async function shareFile(file, title){
+  if(!approveExport()) return;
+  try{
+    if(navigator.canShare?.({files:[file]}) && navigator.share){
+      await navigator.share({files:[file], title});
+      toast('Delingsmenu åbnet');
+    } else {
+      downloadFile(file);
+      toast('Filen er hentet – flyt den til OneDrive');
+    }
+  }catch(err){ if(err?.name !== 'AbortError') { downloadFile(file); toast('Deling kunne ikke åbnes – filen er hentet'); } }
+}
 function exportJson(){
-  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  if(!approveExport()) return;
+  const blob = new Blob([JSON.stringify(exportPayload(),null,2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const name = (state.meta.name || 'diva').toLowerCase().replace(/[^a-z0-9æøå]+/gi,'-').replace(/^-|-$/g,'') || 'diva';
-  a.href = url; a.download = `${name}-diva-2-0.json`; a.click();
+  a.href = url; a.download = `${safeFileStem()}.json`; a.click();
   URL.revokeObjectURL(url);
+}
+function shareJson(){
+  const file = new File([JSON.stringify(exportPayload(),null,2)], `${safeFileStem()}.json`, {type:'application/json'});
+  return shareFile(file, 'Anonym DIVA 2.0-data');
+}
+function shareSummary(){
+  const file = new File([summaryText()], `${safeFileStem()}-sammenfatning.txt`, {type:'text/plain'});
+  return shareFile(file, 'DIVA 2.0-sammenfatning');
+}
+function importJson(){
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'application/json,.json';
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0]; if(!file) return;
+    try{
+      const parsed = JSON.parse(await file.text());
+      if(!parsed || typeof parsed !== 'object' || !parsed.symptoms || !parsed.dysfunction) throw new Error('Ugyldig fil');
+      const imported = mergeDeep(defaultState(), parsed);
+      imported.meta = {
+        caseCode: String(parsed.meta?.caseCode || '').slice(0,40),
+        ageRange: String(parsed.meta?.ageRange || ''),
+        date: String(parsed.meta?.date || new Date().toISOString().slice(0,10))
+      };
+      state = imported; save(); render(); toast('Anonym fil indlæst');
+    }catch(err){ toast('Filen kunne ikke indlæses'); }
+  }, {once:true});
+  input.click();
 }
 
 function handleClick(e){
   const t = e.target.closest('button'); if(!t) return;
   if(t.dataset.tab){ state.tab=t.dataset.tab; save(); render(); window.scrollTo(0,0); return; }
   if(t.dataset.modal){ openModal(t.dataset.modal); return; }
+  if(t.dataset.privacy !== undefined){ openModal('privacy'); return; }
   if(t.dataset.closeModal !== undefined){ closeModal(); return; }
   if(t.dataset.radio){ setByPath(state, t.dataset.radio, t.dataset.value); save(); render(); return; }
   if(t.dataset.support){ state.result[t.dataset.support] = t.dataset.value; save(); render(); return; }
   if(t.dataset.criteriaE){ state.result.criteriaE = t.dataset.criteriaE; save(); render(); return; }
   if(t.dataset.viewMode !== undefined){ state.viewMode = state.viewMode === 'all' ? 'single' : 'all'; save(); render(); return; }
-  if(t.dataset.gotoIndex){ state.symptomIndex = Number(t.dataset.gotoIndex); save(); render(); window.scrollTo(0,0); return; }
+  if(t.dataset.gotoIndex !== undefined){ state.symptomIndex = Number(t.dataset.gotoIndex); save(); render(); window.scrollTo(0,0); return; }
   if(t.dataset.copySummary !== undefined){ navigator.clipboard?.writeText(summaryText()).then(()=>toast('Resultat kopieret')).catch(()=>toast('Kunne ikke kopiere automatisk')); return; }
   if(t.dataset.print !== undefined){ window.print(); return; }
   if(t.dataset.exportJson !== undefined){ exportJson(); return; }
-  if(t.dataset.reset !== undefined){ if(confirm('Nulstil alle udfyldte data i denne browser?')){ state = defaultState(); save(); render(); toast('Nulstillet'); } return; }
+  if(t.dataset.shareJson !== undefined){ shareJson(); return; }
+  if(t.dataset.shareSummary !== undefined){ shareSummary(); return; }
+  if(t.dataset.import !== undefined){ importJson(); return; }
+  if(t.dataset.reset !== undefined){ if(confirm('Slet hele den aktuelle kladde fra denne enhed? Handlingen kan ikke fortrydes.')){ sessionStorage.removeItem(STORE_KEY); state = defaultState(); render(); toast('Kladde slettet'); } return; }
 }
 function handleInput(e){
   const t = e.target;

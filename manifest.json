@@ -1,16 +1,17 @@
 {
-  "name": "DIVA 2.0 webapp",
+  "name": "DIVA 2.0 · Anonymt interview",
   "short_name": "DIVA 2.0",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f5f7fb",
-  "theme_color": "#0f3b63",
+  "background_color": "#f2f2f7",
+  "theme_color": "#f2f2f7",
+  "description": "Lokalt og anonymt klinisk støtteværktøj til DIVA 2.0-interview.",
   "icons": [
     {
       "src": "favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }
