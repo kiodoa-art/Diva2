@@ -138,6 +138,18 @@ input:focus,textarea:focus,select:focus{border-color:#78bce4;box-shadow:0 0 0 4p
 .privacy-strip strong{color:var(--text)}
 .privacy-strip button{margin-left:auto;border:0;background:transparent;color:var(--blue2);font:inherit;font-weight:700;padding:7px}
 .privacy-dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(36,138,61,.12)}
+.finish-panel{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:18px;padding:15px;border-radius:17px;background:#fff7ed;border:1px solid #fed7aa;color:#7c3d0a}
+.finish-panel.ready{background:#effbf3;border-color:#b7e6c3;color:#175c2b}
+.finish-panel span{font-size:.86rem}
+.finish-panel button:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.result-intro{display:flex;align-items:center;justify-content:space-between;gap:16px;background:linear-gradient(145deg,#fff 0%,#f1f8ff 100%)}
+.result-intro h2{margin-bottom:6px}
+.result-intro p{margin:0}
+.result-warning{margin:-4px 0 16px}
+.journal-document{display:contents}
+.answer-mark{display:inline-block;min-width:86px;font-weight:700;color:#6e6e73}
+.answer-mark.positive{color:var(--green)}
+.phase-note{margin:-3px 0 12px;padding:9px 10px;background:#f7f7f9;border-radius:11px}
 .toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);background:#182230;color:#fff;border-radius:999px;padding:10px 14px;font-weight:850;z-index:200;box-shadow:0 16px 40px rgba(0,0,0,.22)}
 .hide-mobile{display:inline-flex}
 @media (max-width:780px){
@@ -156,6 +168,8 @@ input:focus,textarea:focus,select:focus{border-color:#78bce4;box-shadow:0 0 0 4p
   .table{font-size:.86rem}
   .table th,.table td{padding:8px}
   .action-row>*{flex:1 1 190px}
+  .finish-panel,.result-intro{align-items:stretch;flex-direction:column}
+  .finish-panel button,.result-intro button{width:100%}
 }
 @media print{
   body{background:#fff}
@@ -163,4 +177,10 @@ input:focus,textarea:focus,select:focus{border-color:#78bce4;box-shadow:0 0 0 4p
   .app-shell{max-width:none;padding:0}
   .card{box-shadow:none;border:1px solid #bbb;break-inside:avoid}
   .phase-card,.category-card{break-inside:avoid}
+  .result-intro{display:block;border:0;padding:0;margin-bottom:12px}
+  .journal-document{display:block}
+  .print-section{break-inside:auto;margin:0 0 10mm;padding:0;border:0}
+  .page-break-print{break-before:page}
+  .table th{background:#efefef !important;color:#111 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .table .total td{background:#e7f2ff !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }

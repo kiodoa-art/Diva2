@@ -131,6 +131,18 @@ function completion(){
   return { answered, total: DATA.symptoms.length * 2, percent: Math.round(answered / (DATA.symptoms.length * 2) * 100) };
 }
 
+function interviewStatus(){
+  const unanswered = [];
+  DATA.symptoms.forEach(item => {
+    if(state.symptoms[item.code]?.adult?.present === null) unanswered.push(`${item.display} voksen`);
+    if(state.symptoms[item.code]?.child?.present === null) unanswered.push(`${item.display} barn`);
+  });
+  if(state.onset.lifelong === null) unanswered.push('Kriterium B');
+  if(state.dysfunction.adult2plus === null) unanswered.push('Kriterium C/D voksen');
+  if(state.dysfunction.child2plus === null) unanswered.push('Kriterium C/D barn');
+  return { ready: unanswered.length === 0, unanswered };
+}
+
 function render(){
   const app = document.getElementById('app');
   const c = getCounts();
@@ -290,6 +302,7 @@ function renderSupplement(adultKey, childKey, label){
 function renderDysfunction(){
   const adultCount = selectedCategoryCount('adult');
   const childCount = selectedCategoryCount('child');
+  const status = interviewStatus();
   return `<section class="card">
     <h2>Del 3: Dysfunktion som følge af symptomerne</h2>
     <p class="muted">Kriterium B, C og D. Appen tæller automatisk, hvor mange livsområder der er markeret, men Ja/Nej-vurderingen står separat, så din kliniske vurdering ikke bliver overstyret.</p>
@@ -314,7 +327,12 @@ function renderDysfunction(){
   </section>
   <section class="card"><h2>I voksenalderen</h2>${renderDysPhase('adult')}</section>
   <section class="card"><h2>I barndommen</h2>${renderDysPhase('child')}</section>
-  <section class="card"><p><strong>Interviewet er slut. Herefter skal symptomerne sammenfattes.</strong></p><div class="field"><label>Eventuelle bemærkninger</label><textarea data-input="dysfunction.notes">${esc(state.dysfunction.notes)}</textarea></div></section>`;
+  <section class="card"><p><strong>Interviewet er slut. Herefter skal symptomerne sammenfattes.</strong></p><div class="field"><label>Eventuelle bemærkninger</label><textarea data-input="dysfunction.notes">${esc(state.dysfunction.notes)}</textarea></div>
+    <div class="finish-panel no-print ${status.ready ? 'ready' : ''}">
+      <div><strong>${status.ready ? 'Interviewet er udfyldt' : `${status.unanswered.length} vurderinger mangler`}</strong><br><span>${status.ready ? 'Resultatet er klar til klinisk vurdering og journal.' : esc(status.unanswered.slice(0,4).join(', ')) + (status.unanswered.length > 4 ? ' …' : '')}</span></div>
+      <button class="primary-btn" type="button" data-finish-interview ${status.ready ? '' : 'disabled'}>Se resultat <span aria-hidden="true">→</span></button>
+    </div>
+  </section>`;
 }
 function renderDysPhase(phase){
   return Object.entries(DATA.dysfunction[phase]).map(([cat, items]) => {
@@ -329,8 +347,15 @@ function renderResult(){
   const c = getCounts();
   const adultDys = selectedCategoryCount('adult');
   const childDys = selectedCategoryCount('child');
-  return `<section class="card">
+  const status = interviewStatus();
+  return `<section class="card result-intro">
+    <div><div class="eyebrow">Klar til journal</div><h2>DIVA 2.0 - resultat</h2><p class="muted">Anonym reference: <strong>${esc(state.meta.caseCode || 'Ikke angivet')}</strong> · Interviewdato: <strong>${esc(state.meta.date || 'Ikke angivet')}</strong></p></div>
+    <div class="no-print"><button class="primary-btn" type="button" data-copy-journal>Kopiér til journal</button></div>
+  </section>${status.ready ? '' : `<div class="warn no-print result-warning"><strong>Resultatet er ikke færdigt.</strong> Der mangler ${status.unanswered.length} vurderinger: ${esc(status.unanswered.slice(0,6).join(', '))}${status.unanswered.length>6?' …':''}</div>`}
+  <div class="journal-document">
+  <section class="card print-section">
     <h2>Sammenfatning af symptomerne O og H/I</h2>
+    <p class="muted small">Angivelse af hvilke kriterier der er til stede i henholdsvis del 1 og del 2.</p>
     <div style="overflow:auto">
     <table class="table">
       <thead><tr><th>Kriterium</th><th>Symptom</th><th>Voksenalderen</th><th>Barndommen</th></tr></thead>
@@ -343,7 +368,7 @@ function renderResult(){
     </table>
     </div>
   </section>
-  <section class="card">
+  <section class="card print-section page-break-print">
     <h2>Resultatformular</h2>
     <div class="result-box">
       ${resultRow('DSM-IV kriterium A', `I barndommen: O ≥ 6 = <strong>${c.oChild>=6?'Ja':'Nej'}</strong>, H/I ≥ 6 = <strong>${c.hiChild>=6?'Ja':'Nej'}</strong><br>I voksenalderen: O ≥ 6 = <strong>${c.oAdult>=6?'Ja':'Nej'}</strong>, H/I ≥ 6 = <strong>${c.hiAdult>=6?'Ja':'Nej'}</strong>`, 'Automatisk ud fra markerede symptomer')}
@@ -353,7 +378,7 @@ function renderResult(){
     </div>
     <div class="warn" style="margin-top:12px">Bemærk: Den originale resultatformular nævner, at studier har vist, at ADHD i voksenalderen kan stilles ved fire eller flere symptomer på uopmærksomhed og/eller hyperaktivitet/impulsivitet. Appen viser DSM-IV ≥ 6 automatisk og overlader klinisk vurdering til intervieweren.</div>
   </section>
-  <section class="card">
+  <section class="card print-section">
     <h2>Anamnese og dokumentation</h2>
     <div class="grid two">
       <div class="field"><label>Forældre/bror/søster/anden</label><input type="text" value="${esc(state.result.parentSource)}" data-input="result.parentSource"><label class="small">Understøtter</label>${supportButtons('parentSupport')}</div>
@@ -362,7 +387,7 @@ function renderResult(){
       <div class="field"><label>Bemærkninger</label><textarea data-input="result.notes">${esc(state.result.notes)}</textarea></div>
     </div>
   </section>
-  <section class="card">
+  <section class="card print-section">
     <h2>ADHD diagnose</h2>
     <p class="muted">Dette felt er manuelt. Appens subtypeforslag er kun en teknisk opsummering af voksenscoren: <strong>${esc(subtypeSuggestion())}</strong>.</p>
     <div class="grid two">
@@ -370,17 +395,34 @@ function renderResult(){
       <div><label class="small" style="font-weight:850">Undertype</label><select data-input="result.subtype"><option value="notset">Ikke valgt</option><option ${state.result.subtype==='combined'?'selected':''} value="combined">314.01 Kombineret</option><option ${state.result.subtype==='inattentive'?'selected':''} value="inattentive">314.00 Overvejende uopmærksom</option><option ${state.result.subtype==='hyper'?'selected':''} value="hyper">314.01 Overvejende hyperaktiv/impulsiv</option></select></div>
     </div>
     <div class="action-row no-print">
-      <button class="primary-btn" type="button" data-copy-summary>Kopiér resultat</button>
+      <button class="primary-btn" type="button" data-copy-journal>Kopiér til journal</button>
       <button class="ghost-btn" type="button" data-print>Print/gem som PDF</button>
       <button class="ghost-btn" type="button" data-share-summary>Del tekst</button>
       <button class="ghost-btn" type="button" data-share-json>Del anonym fil</button>
       <button class="danger-btn" type="button" data-reset>Slet kladde</button>
     </div>
-  </section>`;
+  </section>
+  </div>`;
 }
+const RESULT_LABELS = {
+  O1:'Er ofte uopmærksom på detaljer eller laver sjuskefejl i sit arbejde eller andre aktiviteter',
+  O2:'Har ofte svært ved at fastholde opmærksomheden om opgaver',
+  O3:'Synes ofte ikke at høre efter ved direkte henvendt tale',
+  O4:'Undlader ofte at følge instruktioner til ende, får ikke gjort lektier eller arbejdsopgaver færdige eller overholdt forpligtelser på arbejdet',
+  O5:'Har ofte svært ved at organisere opgaver og aktiviteter',
+  O6:'Undgår ofte at engagere sig i opgaver, der kræver vedvarende mental udfordring eller koncentration',
+  O7:'Mister eller forlægger ofte ting, der er nødvendige for udførelse af opgaver eller aktiviteter',
+  O8:'Bliver ofte distraheret af ydre stimuli', O9:'Er ofte glemsom i daglige aktiviteter',
+  HI1:'Har ofte svært ved at holde hænder og fødder i ro eller sidder ofte uroligt på stolen',
+  HI2:'Forlader ofte sin plads i situationer, hvor man forventes at blive siddende', HI3:'Føler sig ofte rastløs',
+  HI4:'Har svært ved at engagere sig i afslappende aktiviteter på en stille og rolig måde',
+  HI5:'Er ofte i gang hele tiden eller meget snakkende', HI6:'Taler ofte som et vandfald',
+  HI7:'Buser ud med svaret, før spørgsmålet er formuleret til ende', HI8:'Har ofte svært ved at vente på sin tur',
+  HI9:'Afbryder ofte andres aktiviteter eller trænger sig på'
+};
 function rowSummary(item){
   const st = state.symptoms[item.code];
-  return `<tr><td><strong>${esc(item.dsm)}</strong></td><td><strong>${esc(item.display)}.</strong> ${esc(item.question.split('?')[0])}</td><td>${yesNo(st.adult.present)}</td><td>${yesNo(st.child.present)}</td></tr>`;
+  return `<tr><td><strong>${esc(item.dsm)}</strong></td><td><strong>${esc(item.display)}.</strong> ${esc(RESULT_LABELS[item.code])}</td><td><span class="answer-mark ${st.adult.present===true?'positive':''}">${yesNo(st.adult.present)}</span></td><td><span class="answer-mark ${st.child.present===true?'positive':''}">${yesNo(st.child.present)}</span></td></tr>`;
 }
 function resultRow(left, mid, right){ return `<div class="result-row"><div><strong>${left}</strong><br>${mid}</div><div>${right}</div></div>`; }
 function supportButtons(key){
@@ -428,6 +470,47 @@ function summaryText(){
   lines.push('');
   lines.push('Klinisk støtteværktøj. Resultatet er ikke en selvstændig diagnose.');
   return lines.join('\n');
+}
+function journalText(){
+  const c = getCounts();
+  const lines = [
+    'DIVA 2.0 - diagnostisk interview',
+    `Anonym reference: ${state.meta.caseCode || 'Ikke angivet'}`,
+    `Interviewdato: ${state.meta.date || 'Ikke angivet'}`,
+    state.meta.ageRange ? `Aldersgruppe: ${state.meta.ageRange} år` : '',
+    '',
+    'SAMMENFATNING AF SYMPTOMER'
+  ].filter((line, index) => line !== '' || index > 2);
+  DATA.symptoms.forEach(item => {
+    const st = state.symptoms[item.code];
+    lines.push(`${item.dsm} ${item.display}: Voksenalder ${yesNo(st.adult.present)} | Barndom ${yesNo(st.child.present)} - ${RESULT_LABELS[item.code]}`);
+  });
+  lines.push('');
+  lines.push(`Opmærksomhedsforstyrrelse: Voksenalder ${c.oAdult}/9 | Barndom ${c.oChild}/9`);
+  lines.push(`Hyperaktivitet/impulsivitet: Voksenalder ${c.hiAdult}/9 | Barndom ${c.hiChild}/9`);
+  lines.push('');
+  lines.push('RESULTATFORMULAR');
+  lines.push(`DSM-IV kriterium A: Barndom O ≥ 6: ${c.oChild>=6?'Ja':'Nej'}; H/I ≥ 6: ${c.hiChild>=6?'Ja':'Nej'}. Voksenalder O ≥ 6: ${c.oAdult>=6?'Ja':'Nej'}; H/I ≥ 6: ${c.hiAdult>=6?'Ja':'Nej'}.`);
+  lines.push(`DSM-IV kriterium B, livsvarigt mønster: ${yesNo(state.onset.lifelong)}${state.onset.age ? `; angivet debutalder ${state.onset.age} år` : ''}.`);
+  lines.push(`DSM-IV kriterium C og D, dysfunktion i mindst to forhold: Voksenalder ${yesNo(state.dysfunction.adult2plus)} (${selectedCategoryCount('adult')} markerede områder); barndom ${yesNo(state.dysfunction.child2plus)} (${selectedCategoryCount('child')} markerede områder).`);
+  lines.push(`DSM-IV kriterium E: ${state.result.criteriaE === 'no' ? 'Symptomerne kan ikke forklares bedre med en anden psykisk lidelse' : state.result.criteriaE === 'yes' ? `Kan forklares bedre med: ${state.result.explainedBy || 'ikke angivet'}` : 'Ikke vurderet'}.`);
+  lines.push('');
+  lines.push('SUPPLERENDE ANAMNESE');
+  lines.push(`Forældre/bror/søster/anden: ${state.result.parentSource || 'Ikke angivet'}; understøttelse: ${supportLabel(state.result.parentSupport)}.`);
+  lines.push(`Partner/god ven/anden: ${state.result.partnerSource || 'Ikke angivet'}; understøttelse: ${supportLabel(state.result.partnerSupport)}.`);
+  lines.push(`Skriftlige skoleudtalelser: ${supportLabel(state.result.schoolSupport)}.`);
+  lines.push('');
+  const diagnosis = state.result.diagnosis === true || state.result.diagnosis === 'true' ? 'Ja' : state.result.diagnosis === false || state.result.diagnosis === 'false' ? 'Nej' : 'Ikke vurderet';
+  const subtype = {combined:'314.01 Kombineret', inattentive:'314.00 Overvejende uopmærksom', hyper:'314.01 Overvejende hyperaktiv/impulsiv'}[state.result.subtype] || 'Ikke valgt';
+  lines.push(`ADHD-diagnose: ${diagnosis}. Undertype: ${subtype}.`);
+  if(state.dysfunction.notes) lines.push(`Bemærkninger til dysfunktion: ${state.dysfunction.notes}`);
+  if(state.result.notes) lines.push(`Øvrige bemærkninger: ${state.result.notes}`);
+  lines.push('');
+  lines.push('Resultatet indgår i en samlet klinisk vurdering og kan ikke stå alene som diagnosegrundlag.');
+  return lines.join('\n');
+}
+function supportLabel(value){
+  return value === 'na' ? 'Ikke relevant' : value === '0' ? '0 - understøtter ikke/lidt' : value === '1' ? '1 - understøtter i nogen grad' : value === '2' ? '2 - understøtter i høj grad' : 'Ikke vurderet';
 }
 function safeFileStem(){
   const code = (state.meta.caseCode || 'anonym').toLowerCase().replace(/[^a-z0-9-]+/gi,'-').replace(/^-|-$/g,'');
@@ -511,16 +594,26 @@ function importJson(){
 function handleClick(e){
   const t = e.target.closest('button'); if(!t) return;
   if(t.dataset.startInterview !== undefined){ state.tab='o'; state.viewMode='single'; state.symptomIndex=0; save(); render(); window.scrollTo(0,0); return; }
+  if(t.dataset.finishInterview !== undefined){ if(interviewStatus().ready){ state.tab='result'; save(); render(); window.scrollTo(0,0); } return; }
   if(t.dataset.tab){ state.tab=t.dataset.tab; save(); render(); window.scrollTo(0,0); return; }
   if(t.dataset.modal){ openModal(t.dataset.modal); return; }
   if(t.dataset.privacy !== undefined){ openModal('privacy'); return; }
   if(t.dataset.closeModal !== undefined){ closeModal(); return; }
-  if(t.dataset.radio){ setByPath(state, t.dataset.radio, t.dataset.value); save(); render(); return; }
+  if(t.dataset.radio){
+    const wasReady = interviewStatus().ready;
+    setByPath(state, t.dataset.radio, t.dataset.value);
+    const nowReady = interviewStatus().ready;
+    if(!wasReady && nowReady && state.tab !== 'result'){
+      state.tab='result'; save(); render(); window.scrollTo(0,0); toast('Interviewet er udfyldt - resultatet er klar'); return;
+    }
+    save(); render(); return;
+  }
   if(t.dataset.support){ state.result[t.dataset.support] = t.dataset.value; save(); render(); return; }
   if(t.dataset.criteriaE){ state.result.criteriaE = t.dataset.criteriaE; save(); render(); return; }
   if(t.dataset.viewMode !== undefined){ state.viewMode = state.viewMode === 'all' ? 'single' : 'all'; save(); render(); return; }
   if(t.dataset.gotoIndex !== undefined){ state.symptomIndex = Number(t.dataset.gotoIndex); save(); render(); window.scrollTo(0,0); return; }
   if(t.dataset.copySummary !== undefined){ navigator.clipboard?.writeText(summaryText()).then(()=>toast('Resultat kopieret')).catch(()=>toast('Kunne ikke kopiere automatisk')); return; }
+  if(t.dataset.copyJournal !== undefined){ navigator.clipboard?.writeText(journalText()).then(()=>toast('Journaltekst kopieret')).catch(()=>toast('Kunne ikke kopiere automatisk')); return; }
   if(t.dataset.print !== undefined){ window.print(); return; }
   if(t.dataset.exportJson !== undefined){ exportJson(); return; }
   if(t.dataset.shareJson !== undefined){ shareJson(); return; }
