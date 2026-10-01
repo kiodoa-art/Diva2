@@ -349,10 +349,17 @@ function renderResult(){
   const childDys = selectedCategoryCount('child');
   const status = interviewStatus();
   return `<section class="card result-intro">
-    <div><div class="eyebrow">Klar til journal</div><h2>DIVA 2.0 - resultat</h2><p class="muted">Anonym reference: <strong>${esc(state.meta.caseCode || 'Ikke angivet')}</strong> · Interviewdato: <strong>${esc(state.meta.date || 'Ikke angivet')}</strong></p></div>
-    <div class="no-print"><button class="primary-btn" type="button" data-copy-journal>Kopiér til journal</button></div>
+    <div class="report-brand"><div class="report-logo">D2</div><div><div class="eyebrow">Klinisk resultatoversigt</div><h2>DIVA 2.0</h2><p class="muted">Diagnostisk interview til brug for udredning af ADHD hos voksne</p></div></div>
+    <div class="report-meta"><span>Reference<strong>${esc(state.meta.caseCode || 'Ikke angivet')}</strong></span><span>Dato<strong>${esc(state.meta.date || 'Ikke angivet')}</strong></span>${state.meta.ageRange?`<span>Aldersgruppe<strong>${esc(state.meta.ageRange)} år</strong></span>`:''}</div>
+    <div class="no-print result-actions"><button class="primary-btn" type="button" data-print>Gem som pæn PDF</button><button class="ghost-btn" type="button" data-copy-journal>Kopiér til journal</button></div>
   </section>${status.ready ? '' : `<div class="warn no-print result-warning"><strong>Resultatet er ikke færdigt.</strong> Der mangler ${status.unanswered.length} vurderinger: ${esc(status.unanswered.slice(0,6).join(', '))}${status.unanswered.length>6?' …':''}</div>`}
   <div class="journal-document">
+  <section class="score-overview print-section">
+    ${scoreCard('Opmærksomhed','Voksen',c.oAdult,9)}
+    ${scoreCard('Opmærksomhed','Barn',c.oChild,9)}
+    ${scoreCard('Hyperaktivitet/impulsivitet','Voksen',c.hiAdult,9)}
+    ${scoreCard('Hyperaktivitet/impulsivitet','Barn',c.hiChild,9)}
+  </section>
   <section class="card print-section">
     <h2>Sammenfatning af symptomerne O og H/I</h2>
     <p class="muted small">Angivelse af hvilke kriterier der er til stede i henholdsvis del 1 og del 2.</p>
@@ -396,13 +403,17 @@ function renderResult(){
     </div>
     <div class="action-row no-print">
       <button class="primary-btn" type="button" data-copy-journal>Kopiér til journal</button>
-      <button class="ghost-btn" type="button" data-print>Print/gem som PDF</button>
+      <button class="ghost-btn" type="button" data-print>Gem som pæn PDF</button>
       <button class="ghost-btn" type="button" data-share-summary>Del tekst</button>
       <button class="ghost-btn" type="button" data-share-json>Del anonym fil</button>
       <button class="danger-btn" type="button" data-reset>Slet kladde</button>
     </div>
   </section>
   </div>`;
+}
+function scoreCard(title, phase, value, total){
+  const reached = value >= 6;
+  return `<div class="score-card ${reached?'threshold':''}"><div class="score-title">${esc(title)}</div><div class="score-value">${value}<small>/${total}</small></div><div class="score-foot"><span>${esc(phase)}</span><span class="score-status">${reached?'≥ 6':'< 6'}</span></div></div>`;
 }
 const RESULT_LABELS = {
   O1:'Er ofte uopmærksom på detaljer eller laver sjuskefejl i sit arbejde eller andre aktiviteter',
