@@ -4,6 +4,13 @@ const STORE_KEY = 'diva2-webapp-session-v2';
 const LEGACY_STORE_KEY = 'diva2-webapp-state-v1';
 const SCHEMA_VERSION = 2;
 
+/* Ordlyd, som i det vedlagte danske DIVA 2.0-skema. */
+const o2 = DATA.symptoms.find(item => item.code === 'O2');
+o2.adultNote = '* Medmindre emnet opleves som meget interessant (f.eks. computer eller en hobby).';
+o2.childNote = '* Medmindre emnet opleves som meget interessant (f.eks. computerspil eller en hobby).';
+delete o2.note;
+DATA.symptoms.find(item => item.code === 'HI5').question = 'Er du ofte i gang hele tiden handler som drevet af en motor? Og hvordan var det i din barndom?';
+
 const defaultState = () => {
   const s = {
     tab: 'start',
@@ -262,13 +269,16 @@ function renderPhase(item, phase, st){
     <div class="check-list">
       ${examples.map((txt, idx) => `<label class="check-row"><input type="checkbox" data-example="${item.code}.${phase}.${idx}" ${checked(st.examples[idx])}><span>${esc(txt)}</span></label>`).join('')}
     </div>
+    ${item[`${phase}Note`] ? `<p class="muted small phase-note">${esc(item[`${phase}Note`])}</p>` : ''}
     <div class="field"><label>Andet</label><input type="text" value="${esc(st.other)}" data-input="symptoms.${item.code}.${phase}.other" placeholder="Andet eksempel..."></div>
     <div style="margin-top:12px"><label class="small" style="font-weight:850;color:#344054">Er symptomet til stede?</label>${radioButtons(st.present, `symptoms.${item.code}.${phase}.present`)}</div>
   </div>`;
 }
 function renderSupplement(adultKey, childKey, label){
-  const qAdult = `Har patienten ovennævnte symptomer på ${label} i højere grad eller oftere end andre?`;
-  const qChild = `Havde patienten tidligere ovennævnte symptomer på ${label} i højere grad eller oftere end jævnaldrende?`;
+  const qAdult = `Har du ovennævnte symptomer på ${label} i højere grad eller oftere end andre?`;
+  const qChild = label === 'opmærksomhedsforstyrrelse'
+    ? `Havde du tidligere ovennævnte symptomer på ${label} i højere grad eller oftere end dine jævnaldrende?`
+    : `Havde du ovennævnte symptomer på ${label} i højere grad eller oftere end dine jævnaldrende?`;
   return `<section class="card">
     <h2>Supplement til kriterium A</h2>
     <div class="grid two">
@@ -281,17 +291,19 @@ function renderDysfunction(){
   const adultCount = selectedCategoryCount('adult');
   const childCount = selectedCategoryCount('child');
   return `<section class="card">
-    <h2>Del 3: Dysfunktion og symptomernes opståen</h2>
+    <h2>Del 3: Dysfunktion som følge af symptomerne</h2>
     <p class="muted">Kriterium B, C og D. Appen tæller automatisk, hvor mange livsområder der er markeret, men Ja/Nej-vurderingen står separat, så din kliniske vurdering ikke bliver overstyret.</p>
     <div class="grid two">
       <div class="phase-card">
         <h3>Kriterium B</h3>
-        <p>Har patienten haft ovennævnte symptomer på opmærksomhedsforstyrrelse og/eller hyperaktivitet/impulsivitet altid?</p>
-        ${radioButtons(state.onset.lifelong, 'onset.lifelong', [['true','Ja, før 7 år','yes'],['false','Nej','no'],['null','Ikke vurderet','maybe']])}
-        <div class="field" style="margin-top:12px"><label>Hvis nej: Symptomerne begyndte ved alder</label><input type="text" value="${esc(state.onset.age)}" data-input="onset.age" placeholder="fx 12 år"></div>
+        <p>Har du haft ovennævnte symptomer på Opmærksomhedsforstyrrelse og/eller Hyperaktivitet/Impulsivitet altid?</p>
+        ${radioButtons(state.onset.lifelong, 'onset.lifelong')}
+        <p class="muted small">Ved Ja: Nogle af symptomerne viste sig før syvårsalderen.</p>
+        <div class="field" style="margin-top:12px"><label>Hvis nej: Symptomerne begyndte, da jeg var</label><input type="text" value="${esc(state.onset.age)}" data-input="onset.age" placeholder="Alder i år"></div>
       </div>
       <div class="phase-card">
-        <h3>Kriterium C/D</h3>
+        <h3>Kriterium C</h3>
+        <p>På hvilke områder har du (haft) problemer med ovennævnte symptomer?</p>
         <p><strong>Voksenalderen:</strong> ${adultCount} livsområder markeret. <br><strong>Barndommen:</strong> ${childCount} livsområder markeret.</p>
         <div class="grid two">
           <div><label class="small" style="font-weight:850">Dysfunktion i ≥ 2 forhold i voksenalderen?</label>${radioButtons(state.dysfunction.adult2plus, 'dysfunction.adult2plus')}</div>
@@ -302,7 +314,7 @@ function renderDysfunction(){
   </section>
   <section class="card"><h2>I voksenalderen</h2>${renderDysPhase('adult')}</section>
   <section class="card"><h2>I barndommen</h2>${renderDysPhase('child')}</section>
-  <section class="card"><div class="field"><label>Eventuelle bemærkninger</label><textarea data-input="dysfunction.notes">${esc(state.dysfunction.notes)}</textarea></div></section>`;
+  <section class="card"><p><strong>Interviewet er slut. Herefter skal symptomerne sammenfattes.</strong></p><div class="field"><label>Eventuelle bemærkninger</label><textarea data-input="dysfunction.notes">${esc(state.dysfunction.notes)}</textarea></div></section>`;
 }
 function renderDysPhase(phase){
   return Object.entries(DATA.dysfunction[phase]).map(([cat, items]) => {
