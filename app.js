@@ -181,6 +181,7 @@ function renderStart(){
         ${field('Interviewdato','meta.date',state.meta.date,'date')}
       </div>
       <div class="action-row no-print">
+        <button class="primary-btn start-btn" type="button" data-start-interview>Start interview <span aria-hidden="true">→</span></button>
         <button class="primary-btn" type="button" data-modal="patient">Vis information til patienten</button>
         <button class="ghost-btn" type="button" data-modal="guide">Vis kort vejledning</button>
         <button class="ghost-btn" type="button" data-import>Hent anonym fil</button>
@@ -497,6 +498,7 @@ function importJson(){
 
 function handleClick(e){
   const t = e.target.closest('button'); if(!t) return;
+  if(t.dataset.startInterview !== undefined){ state.tab='o'; state.viewMode='single'; state.symptomIndex=0; save(); render(); window.scrollTo(0,0); return; }
   if(t.dataset.tab){ state.tab=t.dataset.tab; save(); render(); window.scrollTo(0,0); return; }
   if(t.dataset.modal){ openModal(t.dataset.modal); return; }
   if(t.dataset.privacy !== undefined){ openModal('privacy'); return; }

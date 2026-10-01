@@ -131,6 +131,7 @@ input:focus,textarea:focus,select:focus{border-color:#78bce4;box-shadow:0 0 0 4p
 .modal-body p{margin-top:0;white-space:pre-wrap}
 .footer-note{font-size:.78rem;color:var(--muted);text-align:center;margin:24px 0 0}
 .action-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.start-btn{font-size:1rem;padding-inline:22px;box-shadow:0 10px 24px rgba(0,122,255,.24)}
 .eyebrow{text-transform:uppercase;letter-spacing:.1em;color:var(--blue);font-size:.72rem;font-weight:800;margin-bottom:7px}
 .welcome-card{background:linear-gradient(145deg,#fff 0%,#f7fbff 100%)}
 .privacy-strip{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:-4px 0 16px;padding:10px 13px;border-radius:15px;background:rgba(255,255,255,.72);border:1px solid rgba(60,60,67,.12);font-size:.82rem;color:var(--muted)}
